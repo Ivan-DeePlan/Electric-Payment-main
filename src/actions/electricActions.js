@@ -56,7 +56,7 @@ export const loginToPaiments = (email, password) => async (dispatch) => {
         payload: date,
       });
       localStorage.setItem("userInfo", JSON.stringify(date));
-      document.location.href = "/manage";
+      document.location.href = "/";
     })
     .catch((error) => {
       dispatch({

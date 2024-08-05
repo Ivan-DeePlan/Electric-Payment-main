@@ -24,7 +24,7 @@ const LoginScreen = () => {
 
   useEffect(() => {
     if (window.localStorage.getItem("userInfo")) {
-      navigate("/manage");
+      navigate("/");
     }
   }, []);
 

@@ -38,39 +38,50 @@ const ManageScreen = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
+  const userInfo = window.localStorage.getItem("userInfo");
+
   const deleteHandler = (id, image) => {
-    if (window.confirm("Are you sure")) {
+    if (userInfo && window.confirm("Are you sure")) {
       dispatch(deletePayment(id, image));
     }
   };
 
   useEffect(() => {
-    if (window.localStorage.getItem("userInfo") || successDelete) {
-      dispatch(listPayments());
-      dispatch(getKWH());
-    } else {
-      navigate("/");
-    }
+    dispatch(listPayments());
+    dispatch(getKWH());
   }, [dispatch, successDelete]);
 
+  const formatDateString = (dateString) => {
+    const [year, month, day] = dateString.split("-");
+    return `${day}/${month}/${year}`;
+  };
+
+  // Find the most recent payment
+  const latestPayment = useMemo(() => {
+    if (payments.length === 0) return null;
+    return payments.reduce((latest, payment) => {
+      const latestDate = new Date(latest.date);
+      const paymentDate = new Date(payment.date);
+      return paymentDate > latestDate ? payment : latest;
+    });
+  }, [payments]);
+
   const filteredPayments = useMemo(() => {
-    const filtered = payments.filter((val) => {
-      if (!searchTerm) return true;
-      return (
-        val.date.includes(searchTerm.toLowerCase()) ||
-        val.paid.includes(searchTerm.toLowerCase()) ||
-        val.KWH.includes(searchTerm.toLowerCase())
-      );
-    });
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
 
-    // Sort the filtered payments by date
-    const sorted = filtered.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return dateB - dateA; // Change to dateA - dateB for ascending order
-    });
+    // Filter the payments based on the search term matching any field
+    return payments
+      .filter((payment) => {
+        const formattedDate = formatDateString(payment.date);
 
-    return sorted;
+        return (
+          formattedDate.includes(lowerCaseSearchTerm) || // Check formatted date
+          payment.paid.toLowerCase().includes(lowerCaseSearchTerm) ||
+          payment.KWH.toString().toLowerCase().includes(lowerCaseSearchTerm) ||
+          payment.price.toString().toLowerCase().includes(lowerCaseSearchTerm)
+        );
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date descending
   }, [payments, searchTerm]);
 
   const openModal = (image) => {
@@ -109,9 +120,13 @@ const ManageScreen = () => {
                 <Loader />
               ) : (
                 <div className="ManageTitles">
-                  KWH: {currentKwh[0]}
-                  <br />
-                  Last update: {currentKwh[1]}
+                  {latestPayment && (
+                    <>
+                      KWH: {latestPayment.KWH}
+                      <br />
+                      Last update: {formatDateString(latestPayment.date)}
+                    </>
+                  )}
                 </div>
               )}
             </Col>
@@ -121,8 +136,9 @@ const ManageScreen = () => {
                   setSearchTerm(e.target.value);
                 }}
                 type="text"
-                placeholder="Search...   date / paid / kwh "
+                placeholder="Search by date (DD/MM/YYYY), paid, kWh, price..."
                 className="w-100 text-center border border-dark"
+                value={searchTerm}
               />
             </Col>
           </Row>
@@ -133,7 +149,7 @@ const ManageScreen = () => {
               <tr>
                 <th>IMAGE</th>
                 <th>kWh</th>
-                <th>paid Data</th>
+                <th>Paid Date</th>
                 <th>Price</th>
                 <th>Paid</th>
                 <th>Actions</th>
@@ -155,27 +171,33 @@ const ManageScreen = () => {
                   <td>{payment.KWH}</td>
                   <td>
                     <div style={{ width: "110px" }}>
-                      {`${payment.date.split("-")[2]}/${
-                        payment.date.split("-")[1]
-                      }/${payment.date.split("-")[0]}`}
+                      {formatDateString(payment.date)}
                     </div>
                   </td>
                   <td>{payment.price.toFixed(2)}</td>
                   <td>{payment.paid}</td>
                   <td>
                     <div className="updateDeleteDiv">
-                      <LinkContainer to={`/manage/${payment.id}`}>
-                        <Button variant="info rounded" className="btn-sm">
-                          UPDATE
-                        </Button>
-                      </LinkContainer>{" "}
-                      <Button
-                        variant="danger"
-                        className="btn-sm rounded"
-                        onClick={() => deleteHandler(payment.id, payment.image)}
-                      >
-                        DELETE
-                      </Button>
+                      {userInfo ? (
+                        <>
+                          <LinkContainer to={`/manage/${payment.id}`}>
+                            <Button variant="info rounded" className="btn-sm">
+                              UPDATE
+                            </Button>
+                          </LinkContainer>{" "}
+                          <Button
+                            variant="danger"
+                            className="btn-sm rounded"
+                            onClick={() =>
+                              deleteHandler(payment.id, payment.image)
+                            }
+                          >
+                            DELETE
+                          </Button>
+                        </>
+                      ) : (
+                        <span>Login to edit</span>
+                      )}
                     </div>
                   </td>
                 </tr>

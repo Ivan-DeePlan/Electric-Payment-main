@@ -14,22 +14,24 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { storage } from "../firebase";
 
 const CreateScreen = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // Local state for input fields and operations
   const [price, setPrice] = useState(0);
   const [paid, setPaid] = useState("");
-  const [date, setDate] = useState();
-  const [image, setImage] = useState();
-  const [file, setFile] = useState();
+  const [date, setDate] = useState("");
+  const [image, setImage] = useState(null);
+  const [file, setFile] = useState(null);
   const [currentKWH, setCurrentKWH] = useState(0);
+  const [KWH, setKwh] = useState(0);
 
   const [progressBar, setProgressBar] = useState(0);
   const [upload, setUpload] = useState(false);
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-
+  // Selectors for Redux state
   const electricKWH = useSelector((state) => state.electricKWH);
   const { data } = electricKWH;
-  const [KWH, setKwh] = useState(0);
 
   const electricCreate = useSelector((state) => state.electricCreate);
   const {
@@ -38,10 +40,11 @@ const CreateScreen = () => {
     success: successCreate,
   } = electricCreate;
 
+  // Handler for form submission
   const createProductHandler = (e) => {
     e.preventDefault();
 
-    if (currentKWH < KWH) {
+    if (KWH > currentKWH) {
       const name = new Date().getTime() + file.name;
       const storageRef = ref(storage, name);
       const uploadTask = uploadBytesResumable(storageRef, file);
@@ -64,29 +67,41 @@ const CreateScreen = () => {
         }
       );
     } else {
-      alert(`kWh need to be grater then current kWh:${currentKWH}`);
+      alert(`kWh needs to be greater than current kWh: ${currentKWH}`);
     }
   };
 
+  // Effect hook for fetching data and updating state
   useEffect(() => {
-    dispatch(getKWH);
-    if (upload && file && progressBar === 100) {
+    dispatch(getKWH());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (data && data.length > 0) {
+      setCurrentKWH(data[0]);
+      setKwh(data[0]); // Initialize KWH with the current KWH value
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (upload && file && progressBar === 100 && image) {
       dispatch(createPayment(KWH, date, price, paid, image));
       setUpload(false);
     }
-    if (data[0]) {
-      setCurrentKWH(data[0]);
-    }
+  }, [dispatch, upload, file, progressBar, image, KWH, date, price, paid]);
 
+  useEffect(() => {
     if (successCreate) {
       dispatch({ type: PAYMENT_CREATE_RESET });
       dispatch({ type: KWH_RESET });
-      alert("Product Created !");
-      navigate("/manage");
+      navigate("/");
     }
+  }, [dispatch, successCreate, navigate]);
 
+  useEffect(() => {
+    // Update the price based on the difference between KWH and currentKWH
     setPrice((KWH - currentKWH) * 0.57);
-  }, [successCreate, navigate, KWH, file, data, upload, progressBar]);
+  }, [KWH, currentKWH]);
 
   return (
     <Container>
@@ -99,13 +114,13 @@ const CreateScreen = () => {
           <Form onSubmit={createProductHandler}>
             <br />
             <Form.Group controlId="catalogNumber">
-              <Form.Label>is Paid ? </Form.Label>
+              <Form.Label>Is Paid?</Form.Label>
               <Form.Control
                 required
                 type="text"
                 min={0}
                 placeholder="Is Paid"
-                value={paid ?? ""}
+                value={paid}
                 onChange={(e) => setPaid(e.target.value)}
               ></Form.Control>
             </Form.Group>
@@ -118,20 +133,21 @@ const CreateScreen = () => {
                 required
                 type="number"
                 min={0}
-                value={KWH ?? 0}
+                value={KWH}
                 onChange={(e) => {
-                  setKwh(e.target.value);
+                  setKwh(parseFloat(e.target.value));
                 }}
               ></Form.Control>
-              <p>current kWh: {currentKWH ? currentKWH : 0}</p>
+              <p>Current kWh: {currentKWH}</p>
             </Form.Group>
 
             <br />
             <Form.Group controlId="Data">
-              <Form.Label>Data</Form.Label>
+              <Form.Label>Date</Form.Label>
               <Form.Control
                 required
-                type="Date"
+                type="date"
+                value={date}
                 onChange={(e) => {
                   setDate(e.target.value);
                 }}
@@ -143,14 +159,13 @@ const CreateScreen = () => {
                 <Form.Control
                   required
                   type="file"
-                  placeholder="Enter image URL"
                   onChange={(e) => {
                     setFile(e.target.files[0]);
                   }}
                 ></Form.Control>
                 <ProgressBar
                   now={progressBar}
-                  label={`${progressBar}%`}
+                  label={`${progressBar.toFixed(0)}%`}
                   animated
                 />
               </Form.Group>
@@ -162,7 +177,7 @@ const CreateScreen = () => {
                   type="number"
                   disabled
                   placeholder="Enter price"
-                  value={price.toFixed(2) ?? 0}
+                  value={price.toFixed(2)}
                 ></Form.Control>
               </Form.Group>
             </Form.Group>
@@ -173,7 +188,7 @@ const CreateScreen = () => {
             </Button>
             <Button
               onClick={() => {
-                if (window.confirm("are you sure ? the Data will be lost")) {
+                if (window.confirm("Are you sure? The data will be lost.")) {
                   navigate("/manage");
                 }
               }}
