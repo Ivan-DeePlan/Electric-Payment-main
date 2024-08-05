@@ -114,8 +114,8 @@ const ManageScreen = () => {
         <Message variant="danger">{error}</Message>
       ) : (
         <Container>
-          <Row>
-            <Col>
+         <Row className="align-items-center">
+         <Col xs={12} md={6} className="mb-3">
               {kwhLoader ? (
                 <Loader />
               ) : (
@@ -130,13 +130,13 @@ const ManageScreen = () => {
                 </div>
               )}
             </Col>
-            <Col>
+            <Col xs={12} md={6}>
               <FormControl
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                 }}
                 type="text"
-                placeholder="Search by date (DD/MM/YYYY), paid, kWh, price..."
+                placeholder="Search by date, paid, kWh, price..."
                 className="w-100 text-center border border-dark"
                 value={searchTerm}
               />
